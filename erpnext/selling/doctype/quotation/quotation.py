@@ -466,8 +466,52 @@ def _make_customer(source_name, ignore_permissions=False):
 					message += "<br><ul><li>" + "</li><li>".join(mandatory_fields) + "</li></ul>"
 					message += _("Please create Customer from Lead {0}.").format(lead_link)
 
+<<<<<<< HEAD
 					frappe.throw(message, title=_("Mandatory Missing"))
 			else:
 				return customer_name
 		else:
 			return frappe.get_doc("Customer", quotation.get("party_name"))
+=======
+	return None
+
+
+def create_customer_from_lead(lead_name, ignore_permissions=False):
+	from erpnext.crm.doctype.lead.lead import _make_customer
+
+	customer = _make_customer(lead_name, ignore_permissions=ignore_permissions)
+	customer.flags.ignore_permissions = ignore_permissions
+
+	try:
+		customer.insert()
+		return customer
+	except frappe.MandatoryError as e:
+		handle_mandatory_error(e, customer, lead_name)
+
+
+def create_customer_from_prospect(prospect_name, ignore_permissions=False):
+	from erpnext.crm.doctype.prospect.prospect import make_customer as make_customer_from_prospect
+
+	customer = make_customer_from_prospect(prospect_name)
+	customer.flags.ignore_permissions = ignore_permissions
+
+	try:
+		customer.insert()
+		return customer
+	except frappe.MandatoryError as e:
+		handle_mandatory_error(e, customer, prospect_name)
+
+
+def handle_mandatory_error(e, customer, lead_name):
+	from frappe.utils import get_link_to_form
+
+	mandatory_fields = e.args[0].split(":")[1].split(",")
+	mandatory_fields = [_(customer.meta.get_label(field.strip())) for field in mandatory_fields]
+
+	frappe.local.message_log = []
+	message = _("Could not auto create Customer due to the following missing mandatory field(s):") + "<br>"
+	message += "<br><ul><li>" + "</li><li>".join(mandatory_fields) + "</li></ul>"
+	message += _("Please create Customer from Lead {0}.").format(get_link_to_form("Lead", lead_name))
+
+	frappe.throw(message, title=_("Mandatory Missing"))
+>>>>>>> f42ec6a124 (fix: Add translation for showing mandatory fields in error msg)
