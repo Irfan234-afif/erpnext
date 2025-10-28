@@ -43,7 +43,11 @@ erpnext.PointOfSale.ItemCart = class {
 
 	init_cart_components() {
 		this.$component.append(
-			`<div class="cart-container">
+			`<div class="mobile-item-search">
+				<div class="item-search-field"></div>
+				<button class="browse-items-btn">${__("Browse All Items")}</button>
+			</div>
+			<div class="cart-container">
 				<div class="abs-cart-container">
 					<div class="cart-label">${__("Item Cart")}</div>
 					<div class="cart-header">
@@ -59,9 +63,32 @@ erpnext.PointOfSale.ItemCart = class {
 		);
 		this.$cart_container = this.$component.find(".cart-container");
 
+		this.make_mobile_item_search();
 		this.make_cart_totals_section();
 		this.make_cart_items_section();
 		this.make_cart_numpad();
+	}
+
+	make_mobile_item_search() {
+		this.$mobile_item_search = this.$component.find(".mobile-item-search");
+		this.$item_search_field = this.$mobile_item_search.find(".item-search-field");
+		this.$browse_items_btn = this.$mobile_item_search.find(".browse-items-btn");
+
+		var me = this;
+
+		// Create item search field
+		this.item_search_field = frappe.ui.form.make_control({
+			df: {
+				label: __("Search Item"),
+				fieldtype: "Data",
+				placeholder: __("Search by item code, name, or barcode"),
+			},
+			parent: this.$item_search_field,
+			render_input: true,
+		});
+		this.item_search_field.toggle_label(false);
+		// Hide mobile search on desktop
+		this.toggle_mobile_search();
 	}
 
 	make_cart_items_section() {
@@ -149,6 +176,18 @@ erpnext.PointOfSale.ItemCart = class {
 		);
 	}
 
+	toggle_mobile_search() {
+		if (this.is_mobile_view()) {
+			this.$mobile_item_search.css("display", "flex");
+		} else {
+			this.$mobile_item_search.css("display", "none");
+		}
+	}
+
+	is_mobile_view() {
+		return window.innerWidth <= 620;
+	}
+
 	bind_events() {
 		const me = this;
 		this.$customer_section.on("click", ".reset-customer-btn", function () {
@@ -164,6 +203,36 @@ erpnext.PointOfSale.ItemCart = class {
 
 			const show = me.$cart_container.is(":visible");
 			me.toggle_customer_info(show);
+		});
+
+		// Mobile item search events
+		this.$browse_items_btn.on("click", function () {
+			if (me.events.open_item_selector_modal) {
+				me.events.open_item_selector_modal();
+			}
+		});
+
+		this.item_search_field.$input.on("input", (e) => {
+			clearTimeout(this.last_mobile_search);
+			this.last_mobile_search = setTimeout(() => {
+				const search_term = e.target.value;
+				if (search_term && me.events.search_item_from_cart) {
+					me.events.search_auto_item(search_term).then((status) => {
+						console.log("Status : ", status);
+						if (status) {
+							this.item_search_field.set_value("")
+						}
+					});
+					// setTimeout(() => {
+					// 	this.item_search_field.set_value("")
+					// }, 1000)
+				}
+			}, 300);
+		});
+
+		// Handle window resize to toggle mobile search
+		$(window).on("resize", () => {
+			this.toggle_mobile_search();
 		});
 
 		this.$cart_items_wrapper.on("click", ".cart-item-wrapper", function () {
@@ -225,8 +294,8 @@ erpnext.PointOfSale.ItemCart = class {
 				const fieldname = this.number_pad.fieldnames[btn]
 					? this.number_pad.fieldnames[btn]
 					: typeof btn === "string"
-					? frappe.scrub(btn)
-					: btn;
+						? frappe.scrub(btn)
+						: btn;
 
 				let shortcut_label = shortcut_key.split("+").map(frappe.utils.to_title_case).join("+");
 				shortcut_label = frappe.utils.is_mac() ? shortcut_label.replace("Ctrl", "⌘") : shortcut_label;
@@ -756,8 +825,8 @@ erpnext.PointOfSale.ItemCart = class {
 		const action_is_field_edit = ["qty", "discount_percentage", "rate"].includes(current_action);
 		const action_is_allowed = action_is_field_edit
 			? (current_action == "rate" && this.allow_rate_change) ||
-			  (current_action == "discount_percentage" && this.allow_discount_change) ||
-			  current_action == "qty"
+			(current_action == "discount_percentage" && this.allow_discount_change) ||
+			current_action == "qty"
 			: true;
 
 		const action_is_pressed_twice = this.prev_action === current_action;

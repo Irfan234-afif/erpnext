@@ -344,6 +344,18 @@ erpnext.PointOfSale.Controller = class {
 					// will add/remove LP payment method
 					this.payment.render_loyalty_points_payment_mode();
 				},
+
+				open_item_selector_modal: () => {
+					this.item_selector.toggle_modal(true);
+				},
+
+				search_auto_item: async (search_term) => {
+					return this.item_selector.search_auto_item(search_term);
+				},
+
+				search_item_from_cart: (search_term) => {
+					this.item_selector.search_item(search_term);
+				},
 			},
 		});
 	}
